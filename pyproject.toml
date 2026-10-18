@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "watplan"
+version = "0.1.0"
+description = "A readable CLI and JSON API for WCY WAT timetables"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12,<5",
+  "httpx>=0.28,<1",
+  "rich>=13.9,<15",
+  "fastapi>=0.115,<1",
+  "pydantic>=2.10,<3",
+  "uvicorn>=0.34,<1",
+  "tzdata>=2025.1; sys_platform == 'win32'",
+]
+
+[project.scripts]
+watplan = "watplan.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["watplan"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
