@@ -29,7 +29,7 @@ Replace `GROUP_ID` with a group name listed on the WAT timetable. Semester IDs a
 | `range` | Inclusive date range | `--start` and `--end` |
 | `semester` | All lessons in the selected term | None |
 
-Relative periods use the actual date in Europe/Warsaw. Choosing an old semester does not change what “this week” means. Lesson timestamps include the Warsaw UTC offset, including daylight-saving changes. Only dates with lessons appear in `days`; empty periods return zero lessons and the dates available in the source.
+Relative periods use the actual date in Europe/Warsaw. Choosing an old semester does not change what “this week” means. Lesson times come from each date's calendar-column legend: weekday and weekend late blocks have different hours. Lesson timestamps include the Warsaw UTC offset, including daylight-saving changes. Only dates with lessons appear in `days`; empty periods return zero lessons and the dates available in the source.
 
 ## JSON and scripting
 

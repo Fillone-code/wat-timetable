@@ -35,10 +35,43 @@ BLOCK_TIMES = {
     6: ("17:50", "19:25"),
     7: ("19:40", "21:15"),
 }
+BlockTimes = dict[int, tuple[str, str]]
 
 
 def clean(value: str) -> str:
     return " ".join(value.split())
+
+
+def read_block_times(text: str) -> BlockTimes:
+    times = {}
+    for block, start, end in re.findall(r"(?:^|\n)\s*([1-9])\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\b", text):
+        if start < end and all(int(v.split(":")[0]) < 24 and int(v.split(":")[1]) < 60 for v in (start, end)):
+            times[int(block)] = start, end
+    return times
+
+
+def calendar_block_times(soup: BeautifulSoup) -> tuple[BlockTimes, dict[date, BlockTimes]]:
+    # Real pages have a separate legend in every weekday column. In particular,
+    # Saturday/Sunday's late blocks start earlier than Monday-Friday's. Never
+    # flatten those legends into one map where the last (Sunday) column wins.
+    unscoped = "\n".join(
+        str(node).strip() for node in soup.find_all(string=True)
+        if str(node).strip() and not (
+            node.find_parent(class_="day_blocks") and node.find_parent(class_="day_v1")
+        )
+    )
+    default = {**BLOCK_TIMES, **read_block_times(unscoped)}
+    by_date = {}
+    for column in soup.select(".rozklad_container .day_v1"):
+        legend = column.select_one(".day_blocks")
+        if legend is None:
+            continue
+        times = {**default, **read_block_times(legend.get_text("\n", strip=True))}
+        for cell in column.select(".day"):
+            for class_name in cell.get("class", []):
+                if re.fullmatch(r"\d{4}_\d{2}_\d{2}", class_name):
+                    by_date[date.fromisoformat(class_name.replace("_", "-"))] = times
+    return default, by_date
 
 
 def parse_page(html: str) -> ParsedPage:
@@ -118,10 +151,7 @@ def parse_page(html: str) -> ParsedPage:
     group = group_match[1] if group_match else None
     updated = re.search(r"Data\s+aktualizacji\s*:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})", text, re.I)
 
-    times = dict(BLOCK_TIMES)
-    for block, start, end in re.findall(r"(?:^|\n)\s*([1-9])\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\b", text):
-        if start < end and all(int(v.split(":")[0]) < 24 and int(v.split(":")[1]) < 60 for v in (start, end)):
-            times[int(block)] = start, end
+    times, times_by_date = calendar_block_times(soup)
 
     markers = list(EVENT.finditer(text))
     if selected_id and calendar is None and markers:
@@ -148,7 +178,7 @@ def parse_page(html: str) -> ParsedPage:
             location = location[:-len(tail[0])].strip()
         instructor = values["instructor"].strip(" -")
         block = int(marker[2])
-        start, end = times.get(block, (None, None))
+        start, end = times_by_date.get(day, times).get(block, (None, None))
         lesson = Lesson(
             date=day, block=block, start_time=start, end_time=end,
             starts_at=datetime.combine(day, time.fromisoformat(start), WARSAW) if start else None,
